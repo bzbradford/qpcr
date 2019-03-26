@@ -3,7 +3,7 @@ library(stats)
 
 
 # read data
-qpcr =
+qpcr.in =
   read.csv("qpcr.csv") %>%
   mutate(Beetle = as.factor(Beetle),
          Rep = as.factor(Rep))
@@ -13,43 +13,35 @@ primers =
 
 
 
-# pfaffl procedure
+# Cq technical rep means and grand means
 qpcr.means =
-  qpcr %>%
-  group_by(Location, Date, Target, Beetle) %>%
-  summarise(mean = mean(Cq))
+  qpcr.in %>%
+  group_by(., Location, Date, Target, Beetle) %>%
+  summarise(Mean = mean(Cq, na.rm = T)) %>%
+  left_join(summarise(., GM = mean(Mean, na.rm = T))) %>%
+  mutate(Delta = GM - Mean)
 
-# generate grand means  
-qpcr.gms =
-  qpcr.means %>%
-  group_by(Location, Date, Target) %>%
-  summarise(gm = mean(mean, na.rm = T))
-
-# join grand mean back to main data, join primer efficiency, compute pfaffle value
+# join primer efficiency, compute pfaffle value
 qpcr.joined =
   qpcr.means %>%
-  left_join(qpcr.gms) %>%
-  mutate(delta = gm - mean) %>%
   left_join(primers) %>%
-  mutate(pfaffl = Efficiency ^ delta)
+  mutate(Pfaffl = Efficiency ^ Delta)
 
-# spread 
+# spread on target genes
 qpcr.pfaffl =
   qpcr.joined %>%
-  select(c("Location", "Date", "Target", "Beetle", "pfaffl")) %>%
-  spread(key = Target, value = pfaffl)
+  select(c("Location", "Date", "Target", "Beetle", "Pfaffl")) %>%
+  spread(key = Target, value = Pfaffl)
 
-# means
-qpcr.pfaffl %>%
-  group_by(Location, Date) %>%
-  mutate(ABC = ABC/RP4,
-         CYP = CYP/RP4,
-         GST = GST/RP4,
-         RP4 = RP4/RP4) %>%
-  summarise_at(c("ABC", "CYP", "GST", "RP4"), mean, na.rm = TRUE)
+# divide efficiency-weighted gene expressions by housekeeping gene
+qpcr.rge =
+  qpcr.pfaffl %>%
+  mutate_at(c("ABC", "CYP", "GST"), funs(. / RP4)) %>%
+  select(-"RP4")
 
-# sd
-qpcr.pfaffl %>%
-  group_by(Location, Date) %>%
-  summarise_at(c("ABC", "CYP", "GST", "RP4"), sd, na.rm = TRUE)
+# mean and sd of relative gene efficiences per beetle
+qpcr.rgemeans =
+  qpcr.rge %>%
+  select(-"Beetle") %>%
+  summarise_all(list("mean", "sd"), na.rm = T)
 
