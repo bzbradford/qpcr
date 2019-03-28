@@ -1,4 +1,5 @@
 #### read packages ####
+
 library(tidyverse)
 library(stats)
 
@@ -12,7 +13,7 @@ pfaffl =
     options(warn = -1)
     datname = deparse(substitute(df))
     
-    # determine GOIs
+    # determine genes of interest
     GOI = levels(df$Target)[levels(df$Target) != HKG]
     
     # generate technical rep means
@@ -21,6 +22,7 @@ pfaffl =
       group_by(Location, Date, Target, Beetle) %>%
       summarise(Mean = mean(Cq, na.rm = T))
     
+    # generate grand means of reference population
     gms =
       means %>%
       filter(Location == refpop) %>%
@@ -52,10 +54,11 @@ pfaffl =
       ratios %>%
       select(-"Beetle") %>%
       summarise_all(list("mean", "sd"), na.rm = T) %>%
-      tibble(Data = rep(datname, nrow(.)), .)
+      cbind(Data = rep(datname, nrow(.)), .)
     
     return(meanratios)
   }
+
 
 
 #### read data ####
@@ -63,12 +66,20 @@ pfaffl =
 lipid = read.csv("lipid_qpcr.csv")
 detox = read.csv("detox_qpcr.csv")
 primers = read.csv("primers.csv")
+
+
+
+#### run computations ####
+
+pfaffl(lipid, "VV", "RP4") %>% write.csv("lipid_out.csv")
+pfaffl(detox, "VV", "RP4") %>% write.csv("detox_out.csv")
+
+
+
+#### Stepwise calculation ####
+
 HKG = "RP4"
 GOI = levels(lipid$Target)[levels(lipid$Target) != HKG]
-
-pfaffl(lipid, "VV", "RP4")
-
-
 
 means =
   lipid %>%
@@ -104,44 +115,8 @@ rge =
   mutate_at(GOI, funs(. / get(HKG)))
 rge
 
-
-#### Stepwise calculation ####
-
-# Cq technical rep means and grand means
-qpcr.means =
-  lipid %>%
-  group_by(., Location, Date, Target, Beetle) %>%
-  summarise(Mean = mean(Cq, na.rm = T)) %>%
-  left_join(summarise(., GM = mean(Mean, na.rm = T))) %>%
-  mutate(Delta = GM - Mean)
-qpcr.means
-
-# join primer efficiency, compute pfaffle value
-qpcr.joined =
-  qpcr.means %>%
-  left_join(primers) %>%
-  mutate(Pfaffl = Efficiency ^ Delta)
-qpcr.joined
-
-# spread on target genes
-qpcr.pfaffl =
-  qpcr.joined %>%
-  select(c("Location", "Date", "Target", "Beetle", "Pfaffl")) %>%
-  spread(key = Target, value = Pfaffl)
-qpcr.pfaffl
-
-# divide efficiency-weighted gene expressions by housekeeping gene
-qpcr.rge =
-  qpcr.pfaffl %>%
-  mutate_at(GOI, funs(. / get(HKG))) %>%
-  select(-HKG)
-
-# mean and sd of relative gene efficiences per beetle
-qpcr.rgemeans =
-  qpcr.rge %>%
+meanratios =
+  ratios %>%
   select(-"Beetle") %>%
-  summarise_all(list("mean", "sd"), na.rm = T)
-
-qpcr.rgemeans %>% write.csv("pfaffl_out.csv")
-
-
+  summarise_all(list("mean", "sd"), na.rm = T) %>%
+  tibble(Data = rep(datname, nrow(.)), .)
