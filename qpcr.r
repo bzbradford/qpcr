@@ -100,8 +100,10 @@ pfaffl(detox1.2, "VV", "RP4")
 
 # detox results
 detox.results = pfaffl(detox1.2, "VV", "RP4", write = F)
+detox.results
 dodge = position_dodge(width = .5)
-detox.results %>%
+detox.plot =
+  detox.results %>%
   ggplot(aes(x = Location,
              y = Mean,
              ymin = Mean,
@@ -112,13 +114,16 @@ detox.results %>%
   facet_wrap(~ Date) +
   labs(y = "Mean gene expression ratio",
        title = "Detox qPCR (Reference population = VV")
+detox.plot
+ggsave("detox plot.png", detox.plot)
 
 
 # lipid results
 lipid.results = pfaffl(lipid, "VV", "RP4", write = F)
 lipid.results
 dodge = position_dodge(width = .5)
-lipid.results %>%
+lipid.plot =
+  lipid.results %>%
   ggplot(aes(x = Location,
              y = Mean,
              ymin = Mean,
@@ -129,7 +134,8 @@ lipid.results %>%
   facet_wrap(~ Date) +
   labs(y = "Mean gene expression ratio",
        title = "Lipid qPCR (Reference population = VV")
-
+lipid.plot
+ggsave("lipid plot.png", lipid.plot)
 
 # this is wrong
 anova(lm(Mean ~ Target + Date + Location, data = lipid.results))
