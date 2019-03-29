@@ -98,19 +98,38 @@ pfaffl(detox1.2, "VV", "RP4")
 
 
 
-# graph results
+# detox results
 detox.results = pfaffl(detox1.2, "VV", "RP4", write = F)
-lipid.results = pfaffl(lipid, "VV", "RP4", write = F)
-
 dodge = position_dodge(width = .5)
-lipid.results %>%
+detox.results %>%
   ggplot(aes(x = Location,
              y = Mean,
-             ymin = Mean - SD,
+             ymin = Mean,
              ymax = Mean + SD,
              fill = Target)) +
   geom_col(position = dodge, color = "black", width = .5) +
   geom_errorbar(position = dodge, width = .25) +
-  scale_y_sqrt() +
   facet_wrap(~ Date) +
-  theme_classic()
+  labs(y = "Mean gene expression ratio",
+       title = "Detox qPCR (Reference population = VV")
+
+
+# lipid results
+lipid.results = pfaffl(lipid, "VV", "RP4", write = F)
+lipid.results
+dodge = position_dodge(width = .5)
+lipid.results %>%
+  ggplot(aes(x = Location,
+             y = Mean,
+             ymin = Mean,
+             ymax = Mean + SD,
+             fill = Target)) +
+  geom_col(position = dodge, color = "black", width = .5) +
+  geom_errorbar(position = dodge, width = .25) +
+  facet_wrap(~ Date) +
+  labs(y = "Mean gene expression ratio",
+       title = "Lipid qPCR (Reference population = VV")
+
+
+# this is wrong
+anova(lm(Mean ~ Target + Date + Location, data = lipid.results))
